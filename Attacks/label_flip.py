@@ -10,7 +10,7 @@ class label_flip_traitor(client):
         new_labels = torch.ones_like(y).mul_(num_label-1) - y
         x, y = x.to(self.device), new_labels.to(self.device)
         logits = self.model(x)
-        zero_grad(self.model)
+        self.model.zero_grad()
         loss = self.criterion(logits, new_labels)
         loss.backward()
-        step_sgd(self.model, self.momentum, self.lr, self.args)
+        self.step_sgd()

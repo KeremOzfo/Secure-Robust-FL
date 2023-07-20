@@ -12,14 +12,13 @@ from Attacks.rop import reloc
 from Attacks.bit_flip import pgd_traitor
 from Attacks.label_flip import label_flip_traitor
 from Attacks.cw import cw_traitor
-from Attacks.sparse import sparse_tmp
 from client import client as loyal_client
 
 aggr_mapper = {'cc': Clipping, 'cm': CM, 'krum': Krum, 'rfa': RFA, 'tm': TM,'avg':fedAVG,
                'scc':Clipping_seq,'bulyan':Bulyan}
 attack_mapper ={'bit_flip':pgd_traitor,'label_flip':label_flip_traitor,
                 'cw':cw_traitor,'alie':alie,'rop':reloc,
-                'ipm':IPMAttack,'sparse':sparse_tmp}
+                'ipm':IPMAttack}
 
 
 
