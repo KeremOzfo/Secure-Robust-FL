@@ -10,23 +10,23 @@ from opacus.accountants import RDPAccountant
 class client():
     def __init__(self,id,dataset,device,args,**kwargs):
         self.id = id
-        self.model = GradSampleModule(get_net(args))
+        self.model = GradSampleModule(get_net(args)) ## OPACUS grad sampler
         self.args = args
         self.device = device
         self.loader = DataLoader(dataset,batch_size=args.bs,shuffle=True)
-        self.poisson_loader = DPDataLoader.from_data_loader(self.loader)
+        self.poisson_loader = DPDataLoader.from_data_loader(self.loader) ## Opacus Poisson loader
         self.criterion = nn.CrossEntropyLoss()
-        self.momentum = None
-        self.momentum2 = None
-        self.local_steps = args.localIter
-        self.lr = args.lr
+        self.momentum = None ## For all optims
+        self.momentum2 = None ## Exclusive to adam and adamw
+        self.step = 0 ## exclusive to adam and adamw optims
+        self.local_steps = args.localIter ## number of local steps
+        self.lr = args.lr ## learning rate
         self.mean_loss = None
-        self.omniscient = False
-        self.relocate = False
-        self.step = 0
-        self.opt_step = self.get_optim(args)
+        self.omniscient = False ## For byzantine clients
+        self.relocate = False ## For byzantine clients
+        self.opt_step = self.get_optim(args) # selected optimzer
 
-    def local_step(self, batch):
+    def local_step(self, batch): ## single minibatch step
         #self.model.register_forward_pre_hook(forbid_accumulation_hook)
         device = self.device
         self.model.to(device)
@@ -37,12 +37,12 @@ class client():
         loss = self.criterion(logits, y)
         loss.backward()
         # flat_grad = get_grad_flattened(self.model,self.device)
-        # unflat_grad(self.model,self.clip(flat_grad))
+        # unflat_grad(self.model,self.clip(flat_grad))  ## grad clipping if necessary
         self.mean_loss = loss.item()
-        self.opt_step()
+        self.opt_step() # update local model with custom optimizer
         self.model.to('cpu')
 
-    def clip(self,grad):
+    def clip(self,grad): ## Grad clipping fuction
         C = self.args.clip_val
         vec_norm = grad.norm(2, 0)
         multiplier = vec_norm.new(vec_norm.size()).fill_(1)
@@ -50,24 +50,26 @@ class client():
         grad *= multiplier
         return grad
 
-    def privatize_grad(self, grad, mechanism=None):
+    def privatize_grad(self, grad, mechanism=None): ## custom nosie injection
         ## todo: custom noise injection
         raise NotImplementedError
 
-    def train_(self, embd_momentum=None):
+    def train_(self, embd_momentum=None): ## Traning
         iterator = iter(self.poisson_loader)
         flat_model = get_model_flattened(self.model, self.device)
-        if embd_momentum is not None:
+        if embd_momentum is not None: ## Embedded momentum given by the PS (Scaffold, FedADC)
             self.momentum = torch.tensor(embd_momentum, device=self.device)
-        elif self.momentum is None:
+        elif self.momentum is None: ## generate new momentum at first comm round
             self.momentum = torch.tensor(torch.zeros_like(flat_model, device=self.device))
         self.momentum.to(self.device)
+
         for i in range(self.local_steps):
             batch = iterator.__next__()
             self.local_step(batch)
         self.momentum.to('cpu')
 
-    def get_grad(self):
+    def get_grad(self): ## get the last momentum value if momentum >0
+        ## This function can be modified to return model difference between client and PS if needed.
         if self.args.opt == 'sgd':
             return torch.clone(self.momentum).detach()
         else: #for adams
@@ -77,10 +79,10 @@ class client():
             moment2 = self.momentum2.clone().detach() / (1- beta2 ** self.step)
             return new_moment / (torch.sqrt(moment2) + eps)
 
-    def update_model(self, net_ps):
+    def update_model(self, net_ps): ## sync local model with Global model
         pull_model(self.model, net_ps)
 
-    def lr_step(self):
+    def lr_step(self): ## custom lr schedular,
         self.lr *= .1
 
     def get_optim(self,args):
@@ -93,7 +95,7 @@ class client():
         else:
             raise NotImplementedError('Invalid optimiser name')
 
-    def step_sgd(self):
+    def step_sgd(self,noise=0): ## custom SGD function
         args = self.args
         last_ind = 0
         grad_mult = 1 - args.Lmomentum if args.worker_momentum else 1
@@ -119,7 +121,7 @@ class client():
                     d_p = buf
                 p.data.add_(d_p, alpha=-self.lr)
 
-    def step_adam(self):
+    def step_adam(self): ## custom ADAM optimizer
         last_ind = 0
         args = self.args
         eps = 1e-08
@@ -147,7 +149,7 @@ class client():
                 p.data.add_(update, alpha=-self.lr)
 
 
-    def step_adamw(self):
+    def step_adamw(self): ## custom AdamW optimizer
         args = self.args
         last_ind = 0
         eps = 1e-08
