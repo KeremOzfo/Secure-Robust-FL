@@ -6,6 +6,7 @@ from opacus.data_loader import DPDataLoader
 from opacus import GradSampleModule
 from opacus.privacy_engine import forbid_accumulation_hook
 from opacus.accountants import RDPAccountant
+
 class client():
     def __init__(self,id,dataset,device,args,**kwargs):
         self.id = id
