@@ -3,3 +3,4 @@ torchvision
 matplotlib
 numpy
 scipy
+opacus
