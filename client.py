@@ -36,19 +36,25 @@ class client():
         logits = self.model(x)
         loss = self.criterion(logits, y)
         loss.backward()
-        # flat_grad = get_grad_flattened(self.model,self.device)
-        # unflat_grad(self.model,self.clip(flat_grad))  ## grad clipping if necessary
+        vec = self.grad_to_vec()
+        self.clip(vec) # grad clipping
         self.mean_loss = loss.item()
         self.opt_step() # update local model with custom optimizer
         self.model.to('cpu')
 
-    def clip(self,grad): ## Grad clipping fuction
+    def clip(self,grad):
         C = self.args.clip_val
-        vec_norm = grad.norm(2, 0)
+        vec_norm = grad.norm(2, 1)
         multiplier = vec_norm.new(vec_norm.size()).fill_(1)
         multiplier[vec_norm.gt(C)] = C / vec_norm[vec_norm.gt(C)]
-        grad *= multiplier
+        grad *= multiplier.unsqueeze(1)
         return grad
+
+    def grad_to_vec(self):
+        res = []
+        for p in self.model.parameters():
+            res.append(p.grad_sample.view(p.grad_sample.size(0), -1))
+        return torch.cat(res, dim=1).squeeze()
 
     def privatize_grad(self, grad, mechanism=None): ## custom nosie injection
         ## todo: custom noise injection
