@@ -29,9 +29,13 @@ def run(args,device):
     epoch = 0
     lr = args.lr
     accs = []
+
+    ##debug purposes
     clip_norm,clips = [], []
     krum_bypass, bypasses = [], []
     ep_loss, losses = [], []
+    ##
+
     robust_update = torch.zeros(count_parameters(net_ps),device=device)
     for i in range(num_client):
         worker_dataset = DatasetSplit(trainset,sample_inds[i])
@@ -43,28 +47,28 @@ def run(args,device):
     [cl.update_model(net_ps) for cl in [*loyal_clients, *traitor_clients]]
 
     ########### Clusters are not employed right now !
-    if args.Byz_each_cluster and num_byz>0:
+    if args.Byz_each_cluster and num_byz>0: #ensures at least 1 byzantine at each cluster
         clusters = np.array_split(loyal_clients,args.num_clusters)
         clusters = [cluster.tolist() for cluster in clusters]
         print(clusters)
         for i in range(num_byz):
             cluster_ind = i % args.num_clusters
             clusters[cluster_ind].append(traitor_clients[i])
-    else:
+    else: ## full random clustering
         all_clients = [*loyal_clients, *traitor_clients]
         np.random.shuffle(all_clients)
         clusters = np.array_split(all_clients,args.num_clusters)
         clusters = [cluster.tolist() for cluster in clusters]
     np.random.shuffle(clusters)
-
+    #################################################
 
     while epoch < args.global_epoch:
         [cl.train_() for cl in loyal_clients]
         if num_byz >0:
             if traitor_clients[0].omniscient:
-                if args.MITM:
+                if args.MITM: ## direclty use the updates of the benign clients
                     benign_grads = [cl.get_grad() for cl in loyal_clients]
-                else:
+                else: ## byzantines calculates and predict benign gradient by themselfs
                     [cl.train_psuedo_moments() for cl in traitor_clients]
                     benign_grads = [cl.get_benign_preds() for cl in traitor_clients]
                     benign_grads = functools.reduce(operator.iconcat, benign_grads, [])
@@ -72,29 +76,35 @@ def run(args,device):
                     #check_dist(real_grads,benign_grads,device)
                 [cl.omniscient_callback(benign_grads) for cl in traitor_clients]
             else:
-                [cl.train_() for cl in traitor_clients]
+                [cl.train_() for cl in traitor_clients] ## bit_fip and label_flip attacks
         outputs = [cl.get_grad() for cl in [*loyal_clients, *traitor_clients]]
         assert len(outputs) == num_client
         ep_loss.append(sum([cl.mean_loss for cl in loyal_clients]) / len(loyal_clients))
-        if args.aggr == 'cc' and num_byz > 0:
+
+        ####
+        if args.aggr == 'cc' and num_byz > 0: ## CC debugging
             byz_out = outputs[-1]
             aggr_dif = byz_out.sub(robust_update)
             clip_byz = aggr.clip(aggr_dif)
             clip_norm.append((aggr_dif-clip_byz).norm().item())
-        elif args.aggr == 'krum' and num_byz >0:
+        elif args.aggr == 'krum' and num_byz >0: ## krum debuggin
             krum_bypass.append(aggr.success)
-        robust_update = aggr.__call__(outputs)
+
+
+        robust_update = aggr.__call__(outputs) ## aggregation
         ps_flat = get_model_flattened(net_ps, device)
-        ps_flat.add_(robust_update, alpha=-lr)
-        unflat_model(net_ps, ps_flat)
+        ps_flat.add_(robust_update, alpha=-lr) ## update global model
+        unflat_model(net_ps, ps_flat) ## update global model
         prev_epoch = int(epoch)
         epoch += (num_client * args.localIter * args.bs) / total_sample
-        current_epoch = int(epoch)
-        [cl.update_model(net_ps) for cl in [*loyal_clients, *traitor_clients]]
+        current_epoch = int(epoch) ## update epoch
+        [cl.update_model(net_ps) for cl in [*loyal_clients, *traitor_clients]] ## broadcast the latest model
         if num_byz > 0:
             if traitor_clients[0].relocate:
-                [cl.get_global_m(robust_update.clone()) for cl in traitor_clients]
-        if current_epoch > prev_epoch:
+                [cl.get_global_m(robust_update.clone()) for cl in traitor_clients] ## Byzantines estimate aggregated value
+
+        ############
+        if current_epoch > prev_epoch: ## Printing Information about the current epoch
             acc = evaluate_accuracy(net_ps, testloader, device)
             avg_clip = round(sum(clip_norm) / len(clip_norm),4) if len(clip_norm) >0 else None
             mean_train_loss = round(sum(ep_loss)/len(ep_loss),4)
@@ -114,9 +124,10 @@ def run(args,device):
             clip_norm = []
             ep_loss = []
             krum_bypass = []
-            if current_epoch in args.lr_decay:
-                [cl.lr_step()for cl in [*loyal_clients,*traitor_clients]]
-                lr *= .1
+        ##############
+        if current_epoch in args.lr_decay:  # Update learning rate
+            [cl.lr_step() for cl in [*loyal_clients, *traitor_clients]]
+            lr *= .1
     return accs,losses,clips,bypasses
 
 
