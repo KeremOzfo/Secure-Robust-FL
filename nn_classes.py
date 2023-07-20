@@ -3,6 +3,7 @@ from Models.ResNet import *
 from Models.VGG import VGG
 from Models.MLP import *
 from utils import count_parameters
+from opacus.validators import ModuleValidator
 
 num_groups_ = 32
 
@@ -43,6 +44,9 @@ def get_net(args):
         raise ValueError
     net = network[0](*network[1:])
     init_weights(net, args)
+    if not ModuleValidator.is_valid(net):
+        print('modifying network for OPACUS')
+        net = ModuleValidator.fix(net)
     return net
 
 class NoneNorm(nn.Module):
