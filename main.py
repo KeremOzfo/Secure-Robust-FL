@@ -56,7 +56,6 @@ def run(args,device):
         clusters = np.array_split(all_clients,args.num_clusters)
         clusters = [cluster.tolist() for cluster in clusters]
     np.random.shuffle(clusters)
-    print(clusters)
 
 
     while epoch < args.global_epoch:
