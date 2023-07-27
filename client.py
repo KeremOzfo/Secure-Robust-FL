@@ -36,8 +36,13 @@ class client():
         logits = self.model(x)
         loss = self.criterion(logits, y)
         loss.backward()
-        vec = self.grad_to_vec()
-        self.clip(vec) # grad clipping
+        
+        if self.args.private_client_training:
+            vec = self.grad_to_vec()
+            vec = self.clip(vec) # grad clipping
+            vec = self.privatize_grad(vec) # noise addition
+            self.update_grad(vec) # put the privatized gradients to the model
+        
         self.mean_loss = loss.item()
         self.opt_step() # update local model with custom optimizer
         self.model.to('cpu')
@@ -57,8 +62,18 @@ class client():
         return torch.cat(res, dim=1).squeeze()
 
     def privatize_grad(self, grad, mechanism=None): ## custom nosie injection
-        ## todo: custom noise injection
-        raise NotImplementedError
+        grad = grad.mean(0)
+        grad += torch.randn_like(grad).to(self.device) * self.args.sigma # adding noise to the mean of the sample gradients
+
+        return grad
+    
+    def update_grad(self,grad):
+        self.model.zero_grad()
+        for p in self.model.parameters():
+            size = p.data.view(1,-1).size(1)
+            p.grad = grad[:size].view_as(p.data).clone()
+            grad = grad[size:]
+        return
 
     def train_(self, embd_momentum=None): ## Traning
         iterator = iter(self.poisson_loader)

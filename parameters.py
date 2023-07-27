@@ -21,7 +21,13 @@ def args_parser():
     parser.add_argument('--MITM', type=bool, default=True, help='Adversary capable of man-in-middle-attack')
 
     # Privacy params
+    parser.add_argument('--private_client_training', action=argparse.BooleanOptionalAction, help='if (loyal) clients train privately or not')
+    parser.set_defaults(private_client_training=False)
+
+    #parser.add_argument('--private_client_training', type=bool, default=True, help='if (loyal) clients train privately or not')
     parser.add_argument('--clip_val', type=float, default=1., help='norm bound for grads')
+    parser.add_argument('--sigma', type=float, default=1., help='noise std for privacy')
+
 
 
     # Defence params
