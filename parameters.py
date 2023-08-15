@@ -10,8 +10,8 @@ def args_parser():
     # Federated params
     parser.add_argument('--global_epoch', type=int, default=100, help='total cumulative epoch')
     parser.add_argument('--localIter', type=int, default=1, help='Local Epoch')
-    parser.add_argument('--num_client', type=int, default=10, help='number of clients')
-    parser.add_argument('--num_clusters', type=int, default=2, help='number of clusters')
+    parser.add_argument('--num_client', type=int, default=25, help='number of clients')
+    parser.add_argument('--num_clusters', type=int, default=7, help='number of clusters')
     parser.add_argument('--Byz_each_cluster', type=bool, default=False, help='Ensures that at least 1 Byzantine present in each cluster')
     parser.add_argument('--traitor', type=float, default=0.2, help='traitor ratio')
     parser.add_argument('--attack', type=str, default='bit_flip', help='see Attacks')
@@ -22,16 +22,16 @@ def args_parser():
 
     # Privacy params
     parser.add_argument('--private_client_training', action=argparse.BooleanOptionalAction, help='if (loyal) clients train privately or not')
-    parser.set_defaults(private_client_training=False)
+    parser.set_defaults(private_client_training=True)
 
     #parser.add_argument('--private_client_training', type=bool, default=True, help='if (loyal) clients train privately or not')
-    parser.add_argument('--clip_val', type=float, default=1., help='norm bound for grads')
-    parser.add_argument('--sigma', type=float, default=1., help='noise std for privacy')
+    parser.add_argument('--clip_val', type=float, default=10., help='norm bound for grads')
+    parser.add_argument('--sigma', type=float, default=1, help='noise std for privacy')
 
 
 
     # Defence params
-    parser.add_argument('--tau', type=float, default=1, help='tau value for cc aggr')
+    parser.add_argument('--tau', type=float, default=10, help='tau value for cc aggr')
     parser.add_argument('--buck_len', type=int, default=3, help='bucket length for sequential cc')
     parser.add_argument('--buck_avg', type=bool, default=True, help='average the bucket for sequential cc')
     parser.add_argument('--multi_clip', type=bool, default=False, help='Additional reference point for the s-CC aggregator')

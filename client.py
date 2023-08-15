@@ -64,7 +64,6 @@ class client():
     def privatize_grad(self, grad, mechanism=None): ## custom nosie injection
         grad = grad.mean(0)
         grad += torch.randn_like(grad).to(self.device) * self.args.sigma # adding noise to the mean of the sample gradients
-
         return grad
     
     def update_grad(self,grad):

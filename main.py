@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from data_loader import get_dataset, get_indices, DatasetSplit
 from mapper import *
 from utils import *
+from clustering import Clusters
 import operator
 import functools
 
@@ -45,23 +46,7 @@ def run(args,device):
         else:
             loyal_clients.append(get_benign_cl(i,worker_dataset,device,args))
     [cl.update_model(net_ps) for cl in [*loyal_clients, *traitor_clients]]
-
-    ########### Clusters are not employed right now !
-    if args.Byz_each_cluster and num_byz>0: #ensures at least 1 byzantine at each cluster
-        clusters = np.array_split(loyal_clients,args.num_clusters)
-        clusters = [cluster.tolist() for cluster in clusters]
-        print(clusters)
-        for i in range(num_byz):
-            cluster_ind = i % args.num_clusters
-            clusters[cluster_ind].append(traitor_clients[i])
-    else: ## full random clustering
-        all_clients = [*loyal_clients, *traitor_clients]
-        np.random.shuffle(all_clients)
-        clusters = np.array_split(all_clients,args.num_clusters)
-        clusters = [cluster.tolist() for cluster in clusters]
-    np.random.shuffle(clusters)
-    #################################################
-
+    clusters = Clusters(args,loyal_clients,traitor_clients)
     while epoch < args.global_epoch:
         [cl.train_() for cl in loyal_clients]
         if num_byz >0:
@@ -77,20 +62,19 @@ def run(args,device):
                 [cl.omniscient_callback(benign_grads) for cl in traitor_clients]
             else:
                 [cl.train_() for cl in traitor_clients] ## bit_fip and label_flip attacks
-        outputs = [cl.get_grad() for cl in [*loyal_clients, *traitor_clients]]
-        assert len(outputs) == num_client
+        clusters.shuffle()
         ep_loss.append(sum([cl.mean_loss for cl in loyal_clients]) / len(loyal_clients))
 
         ####
         if args.aggr == 'cc' and num_byz > 0: ## CC debugging
-            byz_out = outputs[-1]
+            byz_out = traitor_clients[-1].get_grad()
             aggr_dif = byz_out.sub(robust_update)
             clip_byz = aggr.clip(aggr_dif)
             clip_norm.append((aggr_dif-clip_byz).norm().item())
         elif args.aggr == 'krum' and num_byz >0: ## krum debuggin
             krum_bypass.append(aggr.success)
 
-
+        outputs = clusters.aggr_clusters()
         robust_update = aggr.__call__(outputs) ## aggregation
         ps_flat = get_model_flattened(net_ps, device)
         ps_flat.add_(robust_update, alpha=-lr) ## update global model
