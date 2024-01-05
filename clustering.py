@@ -43,5 +43,5 @@ class Clusters(object):
         if self.args.private_client_training and self.args.noise_from_cluster:
             noises = [torch.randn_like(aggr) * self.args.sigma for aggr in aggr_clusters]
             for i in range(len(noises)):
-                aggr_clusters[i] += noises[i]
+                aggr_clusters[i] += noises[i] / len(self.clusters[i])
         return aggr_clusters
