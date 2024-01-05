@@ -4,14 +4,16 @@ import argparse
 def args_parser():
     parser = argparse.ArgumentParser()
     # technical params
-    parser.add_argument('--trials', type=int, default=1, help='number of trials')
-    parser.add_argument('--device', type=str, default='cuda:0', help='Use cuda as device')
+    parser.add_argument('--trials', type=int, default=3, help='number of trials')
+    parser.add_argument('--cuda', type=bool, default=True, help='Use cuda as device')
+    parser.add_argument('--worker_per_device', type=int, default=5, help='parallel processes per device')
+    parser.add_argument('--excluded_gpus', type=list, default=[], help='bypassed gpus')
 
     # Federated params
     parser.add_argument('--global_epoch', type=int, default=100, help='total cumulative epoch')
     parser.add_argument('--localIter', type=int, default=1, help='Local Epoch')
     parser.add_argument('--num_client', type=int, default=25, help='number of clients')
-    parser.add_argument('--num_clusters', type=int, default=7, help='number of clusters')
+    parser.add_argument('--num_clusters', type=list, default=[3,4,5,7], help='number of clusters')
     parser.add_argument('--Byz_each_cluster', type=bool, default=False, help='Ensures that at least 1 Byzantine present in each cluster')
     parser.add_argument('--traitor', type=float, default=0, help='traitor ratio')
     parser.add_argument('--attack', type=str, default='bit_flip', help='see Attacks')
@@ -21,14 +23,13 @@ def args_parser():
     parser.add_argument('--MITM', type=bool, default=True, help='Adversary capable of man-in-middle-attack')
 
     # Privacy params
-    parser.add_argument('--private_client_training', type=bool, default=True,
-                        help='if (loyal) clients train privately or not')
-    parser.add_argument('--noise_from_cluster', type=bool, default=False,
+    parser.add_argument('--private_client_training', type=bool,default=True, help='if (loyal) clients train privately or not')
+    parser.add_argument('--noise_from_cluster', type=bool, default=True,
                         help='noise added in the clusters')
 
     #parser.add_argument('--private_client_training', type=bool, default=True, help='if (loyal) clients train privately or not')
-    parser.add_argument('--clip_val', type=float, default=1., help='norm bound for grads')
-    parser.add_argument('--sigma', type=float, default=1, help='noise std for privacy')
+    parser.add_argument('--clip_val', type=list, default=[1,10.], help='norm bound for grads')
+    parser.add_argument('--sigma', type=list, default=[.01,.1,1], help='noise std for privacy')
 
 
 
@@ -70,7 +71,7 @@ def args_parser():
     parser.add_argument('--bs', type=int, default=32, help='batchsize')
 
     # nn related
-    parser.add_argument('--nn_name', type=str, default='mnistnet', help='simplecnn,simplecifar,VGGs resnet(8-9-18-20)')
+    parser.add_argument('--nn_name', type=list, default=['mlp_small','mnistnet'], help='simplecnn,simplecifar,VGGs resnet(8-9-18-20)')
     parser.add_argument('--weight_init', type=str, default='-',
                         help='nn weight init, kn (Kaiming normal) or - (None)')
     parser.add_argument('--norm_type', type=str, default='gn',

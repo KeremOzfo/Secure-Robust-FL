@@ -13,6 +13,8 @@ def get_net(args):
     norms = {'bn': nn.BatchNorm2d,
              'gn': GroupNorm,
              '-': NoneNorm, None: NoneNorm}
+    acts = {'relu':nn.ReLU,'elu':nn.ELU,'sigmoid':nn.Sigmoid,
+            'lrelu':nn.LeakyReLU,'gelu':nn.GELU}
     labels = {'cifar10': 10,'svhn': 10,'mnist':10,'fmnist':10,'emnist-d':10,
               'emnist-l': 26,
               'emnist-b': 47,

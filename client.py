@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 from utils import *
@@ -18,6 +19,7 @@ class client():
         self.criterion = nn.CrossEntropyLoss()
         self.momentum = None ## For all optims
         self.momentum2 = None ## Exclusive to adam and adamw
+        self.momentum_clean = None
         self.step = 0 ## exclusive to adam and adamw optims
         self.local_steps = args.localIter ## number of local steps
         self.lr = args.lr ## learning rate
@@ -36,16 +38,27 @@ class client():
         logits = self.model(x)
         loss = self.criterion(logits, y)
         loss.backward()
+        self.momentum = self.momentum_clean.detach().clone()
         
         if self.args.private_client_training:
             vec = self.grad_to_vec()
             vec = self.clip(vec) # grad clipping
-            vec = self.privatize_grad(vec) # noise addition
+            vec_clean = vec.mean(0)
+            if not self.args.noise_from_cluster:
+                vec = self.privatize_grad(vec) # noise addition
+            else:
+                vec = vec_clean
             self.update_grad(vec) # put the privatized gradients to the model
-        
+        else:
+            vec = self.grad_to_vec()
+            vec = self.clip(vec)  # grad clipping
+            vec_clean = vec.mean(0)
+
         self.mean_loss = loss.item()
         self.opt_step() # update local model with custom optimizer
+        self.step_sgd_clean(vec_clean)
         self.model.to('cpu')
+        self.model.zero_grad()
 
     def clip(self,grad):
         C = self.args.clip_val
@@ -63,7 +76,8 @@ class client():
 
     def privatize_grad(self, grad, mechanism=None): ## custom nosie injection
         grad = grad.mean(0)
-        grad += torch.randn_like(grad).to(self.device) * self.args.sigma # adding noise to the mean of the sample gradients
+        noise = torch.randn_like(grad).to(self.device) * self.args.sigma
+        grad += noise # adding noise to the mean of the sample gradients
         return grad
     
     def update_grad(self,grad):
@@ -81,6 +95,7 @@ class client():
             self.momentum = torch.tensor(embd_momentum, device=self.device)
         elif self.momentum is None: ## generate new momentum at first comm round
             self.momentum = torch.tensor(torch.zeros_like(flat_model, device=self.device))
+            self.momentum_clean = torch.tensor(torch.zeros_like(flat_model, device=self.device))
         self.momentum.to(self.device)
 
         for i in range(self.local_steps):
@@ -115,7 +130,7 @@ class client():
         else:
             raise NotImplementedError('Invalid optimiser name')
 
-    def step_sgd(self,noise=0): ## custom SGD function
+    def step_sgd(self): ## custom SGD function
         args = self.args
         last_ind = 0
         grad_mult = 1 - args.Lmomentum if args.worker_momentum else 1
@@ -140,6 +155,16 @@ class client():
                 else:
                     d_p = buf
                 p.data.add_(d_p, alpha=-self.lr)
+
+    def step_sgd_clean(self,grad): ## custom SGD function
+        args = self.args
+        grad_mult = 1 - args.Lmomentum if args.worker_momentum else 1
+        if self.momentum_clean is None:
+            self.momentum_clean = torch.tensor(torch.zeros_like(grad))
+        self.momentum_clean.mul_(args.Lmomentum)
+        self.momentum_clean.add_(grad,alpha=grad_mult)
+
+
 
     def step_adam(self): ## custom ADAM optimizer
         last_ind = 0

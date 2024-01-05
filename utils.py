@@ -94,12 +94,12 @@ def save_results(args,**kwargs):
     momentum = args.Lmomentum
     dataset = '{}_{}'.format(args.dataset_name,args.dataset_dist)
     delta = int(args.traitor * args.num_client) if args.traitor < 1 else int(args.traitor)
-    path_ = 'ATK_{}-Def_{}-dist_{}-B_{}-Z_{}-L_{}-D_{}-{}'.format(attack,aggr,
-                                                    dataset,momentum,args.z_max,args.lamb,delta,
+    path_ = 'ATK_{}-Def_{}-dist_{}-B_{}-D_{}-{}'.format(attack,aggr,
+                                                    dataset,momentum,delta,
                                                     sim_id)
     path = 'Results'
     if args.aggr =='avg' and args.traitor ==0:
-        path_ = 'Baseline-{}-B_{}'.format(dataset,momentum)
+        path_ = 'Baseline-{}-B_{}-{}'.format(dataset,momentum,sim_id)
     elif args.traitor == 0:
         path_ = '{}-No_Attacker-{}-B_{}'.format(aggr,dataset, momentum)
     if not os.path.exists(path):

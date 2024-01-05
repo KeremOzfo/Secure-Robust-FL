@@ -1,12 +1,15 @@
 import numpy as np
 import torch
 
+
 class Clusters(object):
     def __init__(self,args, loyal_clients,traitor_clients):
         self.args = args
         self.benign = loyal_clients
         self.malicous = traitor_clients
         self.clusters = self.get_clusters()
+        self.momentums = [None for cluser in self.clusters]
+        self.aggr = []
 
     def shuffle(self):
         self.clusters = self.get_clusters()
@@ -36,4 +39,9 @@ class Clusters(object):
             aggr_clusters = [sum(self.get_cluster_grads(cluster)) / len(cluster) for cluster in self.clusters]
         else: # should not be used with cc
             aggr_clusters = [aggr.__call__(self.get_cluster_grads(cluster)) for cluster in self.clusters]
+
+        if self.args.private_client_training and self.args.noise_from_cluster:
+            noises = [torch.randn_like(aggr) * self.args.sigma for aggr in aggr_clusters]
+            for i in range(len(noises)):
+                aggr_clusters[i] += noises[i]
         return aggr_clusters

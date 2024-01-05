@@ -1,3 +1,5 @@
+import math
+
 from Aggregators.clipping import Clipping
 from Aggregators.cm import CM
 from Aggregators.krum import Krum
@@ -24,11 +26,28 @@ attack_mapper ={'bit_flip':pgd_traitor,'label_flip':label_flip_traitor,
 
 def get_aggr(args):
     alg = args.aggr
-    num_client = args.num_client
-    b= int(num_client * args.traitor)
+    num_client = int(round(args.num_client / args.num_clusters,0))
+    b= int(round(num_client * args.traitor / args.num_clusters,0))
     n= num_client-b-2
-    aggr_params = {'cc': [args.tau],'cca':[args.tau], 'scc':[args.tau,args.buck_len,args.buck_avg,args.multi_clip],
+    if n < 1:
+        n = 1
+    aggr_params = {'cc': [args.tau],'cca':[args.tau], 'scc':[args.tau,args.buck_len,args.num_clusters,args.buck_avg,args.multi_clip],
         'cm': [None],'krum': [num_client,b,n], 'rfa': [3], 'tm': [b],'avg':[None],'bulyan':[num_client,b]}
+    return aggr_mapper[alg](*aggr_params[alg])
+
+def get_mother_aggr(args):
+    alg = args.aggr
+    num_client = args.num_clusters
+    b = (round(num_client * args.traitor / args.num_clusters, 0))
+    if b < 1:
+        b =1
+    n = num_client - b - 2
+    if n < 1:
+        n = 1
+    aggr_params = {'cc': [args.tau], 'cca': [args.tau],
+                   'scc': [args.tau, args.buck_len, args.num_clusters, args.buck_avg, args.multi_clip],
+                   'cm': [None], 'krum': [num_client, b, n], 'rfa': [3], 'tm': [b], 'avg': [None],
+                   'bulyan': [num_client, b]}
     return aggr_mapper[alg](*aggr_params[alg])
 
 
