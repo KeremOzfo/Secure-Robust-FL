@@ -25,6 +25,7 @@ def args_parser():
                         help='if (loyal) clients train privately or not')
     parser.add_argument('--noise_from_cluster', type=bool, default=False,
                         help='noise added in the clusters')
+    parser.add_argument('--delta', type=float, default=1e-6, help='delta privacy parameter')
 
     #parser.add_argument('--private_client_training', type=bool, default=True, help='if (loyal) clients train privately or not')
     parser.add_argument('--clip_val', type=float, default=1., help='norm bound for grads')
