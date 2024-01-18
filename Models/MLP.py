@@ -2,11 +2,13 @@ import torch.nn as nn
 from utils import count_parameters
 import torch.nn.functional as F
 
-class MLP(nn.Module):
-    def __init__(self,input_size=784,num_class=10):
+class MLP_tiny(nn.Module):
+    def __init__(self,act,input_size=784,num_class=10):
         super().__init__()
         self.hidden1 = nn.Linear(input_size,120)
+        self.act1 = act()
         self.hidden2 = nn.Linear(120,84)
+        self.act2 = act()
         self.classifier = nn.Linear(84,num_class)
 
     def forward(self,x):
@@ -19,14 +21,15 @@ class MLP_small(nn.Module):
   '''
     Multilayer Perceptron.
   '''
-  def __init__(self,num_class):
+  def __init__(self,act,num_class,dropout=0):
     super().__init__()
     self.layers = nn.Sequential(
       nn.Flatten(),
       nn.Linear(28 * 28, 64),
-      nn.ReLU(),
+      act(),
       nn.Linear(64, 32),
-      nn.ReLU(),
+      act(),
+      nn.Dropout(dropout),
       nn.Linear(32, num_class)
     )
 
@@ -52,6 +55,7 @@ class MLP_big(nn.Module):
         return x
 
 if __name__ == '__main__':
-    net_1 = MLP_small(10)
-    net_2 = MLP_big(10)
-    print(count_parameters(net_1),count_parameters(net_2))
+    net_1 = MLP_small(nn.ReLU,10)
+    net_2 = MLP_tiny(10)
+    net_3 = MLP_big(10)
+    print(count_parameters(net_1),count_parameters(net_2),count_parameters(net_3))

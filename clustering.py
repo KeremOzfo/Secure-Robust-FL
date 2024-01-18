@@ -19,7 +19,6 @@ class Clusters(object):
         if self.args.Byz_each_cluster and num_byz>0: #ensures at least 1 byzantine at each cluster
             clusters = np.array_split(self.benign,self.args.num_clusters)
             clusters = [cluster.tolist() for cluster in clusters]
-            print(clusters)
             for i in range(num_byz):
                 cluster_ind = i % self.args.num_clusters
                 clusters[cluster_ind].append(self.malicous[i])

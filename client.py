@@ -14,6 +14,7 @@ class client():
         self.model = GradSampleModule(get_net(args)) ## OPACUS grad sampler
         self.args = args
         self.device = device
+        self.first_step = True if args.first_grad else False
         self.loader = DataLoader(dataset,batch_size=args.bs,shuffle=True)
         self.poisson_loader = DPDataLoader.from_data_loader(self.loader) ## Opacus Poisson loader
         self.criterion = nn.CrossEntropyLoss()
@@ -38,27 +39,22 @@ class client():
         logits = self.model(x)
         loss = self.criterion(logits, y)
         loss.backward()
-        self.momentum = self.momentum_clean.detach().clone()
         
         if self.args.private_client_training:
+            self.momentum = self.momentum_clean.detach().clone()
             vec = self.grad_to_vec()
             vec = self.clip(vec) # grad clipping
             vec_clean = vec.mean(0)
-            if not self.args.noise_from_cluster:
-                vec = self.privatize_grad(vec) # noise addition
-            else:
-                vec = vec_clean
-            self.update_grad(vec) # put the privatized gradients to the model
-        else:
-            vec = self.grad_to_vec()
-            vec = self.clip(vec)  # grad clipping
-            vec_clean = vec.mean(0)
+            self.update_grad(vec_clean) # put the privatized gradients to the model
+            self.step_sgd_clean(vec_clean)
 
         self.mean_loss = loss.item()
         self.opt_step() # update local model with custom optimizer
-        self.step_sgd_clean(vec_clean)
+        if self.args.private_client_training and not self.args.noise_from_cluster:
+            self.privatize_momentum()
         self.model.to('cpu')
         self.model.zero_grad()
+        self.first_step = False
 
     def clip(self,grad):
         C = self.args.clip_val
@@ -74,11 +70,16 @@ class client():
             res.append(p.grad_sample.view(p.grad_sample.size(0), -1))
         return torch.cat(res, dim=1).squeeze()
 
-    def privatize_grad(self, grad, mechanism=None): ## custom nosie injection
+    def privatize_grad(self, grad, mechanism=None): ## custom nosie injection # NOT USED
         grad = grad.mean(0)
         noise = torch.randn_like(grad).to(self.device) * self.args.sigma
         grad += noise # adding noise to the mean of the sample gradients
         return grad
+
+    def privatize_momentum(self): ## custom nosie injection TO MOMENTUM
+        noise = torch.randn_like(self.momentum).to(self.device) * self.args.sigma
+        self.momentum.add_(noise,alpha=self.args.sigma) # adding noise to the mean of the sample gradients
+        return
     
     def update_grad(self,grad):
         self.model.zero_grad()
@@ -133,7 +134,7 @@ class client():
     def step_sgd(self): ## custom SGD function
         args = self.args
         last_ind = 0
-        grad_mult = 1 - args.Lmomentum if args.worker_momentum else 1
+        grad_mult = 1 - args.Lmomentum if args.worker_momentum and not self.first_step else 1
         for p in self.model.parameters():
             if p.requires_grad:
                 d_p = p.grad
@@ -158,7 +159,7 @@ class client():
 
     def step_sgd_clean(self,grad): ## custom SGD function
         args = self.args
-        grad_mult = 1 - args.Lmomentum if args.worker_momentum else 1
+        grad_mult = 1 - args.Lmomentum if args.worker_momentum and not self.first_step else 1
         if self.momentum_clean is None:
             self.momentum_clean = torch.tensor(torch.zeros_like(grad))
         self.momentum_clean.mul_(args.Lmomentum)

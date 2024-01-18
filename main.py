@@ -13,12 +13,6 @@ import functools
 def run(args,device):
     num_client = args.num_client
     num_byz = int(args.traitor*num_client) if args.traitor < 1 else int(args.traitor)
-    # cluster_flag = num_byz / num_client > args.cluster_size / num_client
-    # if cluster_flag:
-    #     aggr_m = ['bulyan','krum','tm']
-    #     if args.aggr in aggr_m:
-    #         print('cluster size is too low for the AGGRs:',aggr_m)
-    #         raise ValueError
     if args.traitor > 0:
         traitors = np.random.choice(range(num_client), num_byz, replace=False)
     else:
@@ -32,7 +26,7 @@ def run(args,device):
     net_ps = get_net(args).to(device)
     print('number of parameters ', round(count_parameters(net_ps) / 1e6,3) ,'M')
     testloader = DataLoader(testset,128,shuffle=False,pin_memory=True)
-    mother_aggr = get_mother_aggr(args)
+    aggr = get_aggr(args)
     epoch = 0
     lr = args.lr
     accs = []
@@ -75,13 +69,13 @@ def run(args,device):
         if args.aggr == 'cc' and num_byz > 0: ## CC debugging
             byz_out = traitor_clients[-1].get_grad()
             aggr_dif = byz_out.sub(robust_update)
-            clip_byz = mother_aggr.clip(aggr_dif)
+            clip_byz = aggr.clip(aggr_dif)
             clip_norm.append((aggr_dif-clip_byz).norm().item())
         elif args.aggr == 'krum' and num_byz >0: ## krum debuggin
-            krum_bypass.append(mother_aggr.success)
+            krum_bypass.append(aggr.success)
 
         outputs = clusters.aggr_clusters()
-        robust_update = mother_aggr.__call__(outputs) ## aggregation
+        robust_update = aggr.__call__(outputs) ## aggregation
         ps_flat = get_model_flattened(net_ps, device)
         ps_flat.add_(robust_update, alpha=-lr) ## update global model
         unflat_model(net_ps, ps_flat) ## update global model

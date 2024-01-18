@@ -13,17 +13,18 @@ def get_net(args):
     norms = {'bn': nn.BatchNorm2d,
              'gn': GroupNorm,
              '-': NoneNorm, None: NoneNorm}
-    acts = {'relu':nn.ReLU,'elu':nn.ELU,'sigmoid':nn.Sigmoid,
-            'lrelu':nn.LeakyReLU,'gelu':nn.GELU}
+    acts = {'relu': nn.ReLU, 'gelu': nn.GELU,'elu': nn.ELU, 'lrelu': nn.LeakyReLU,
+            'sigmoid':nn.Sigmoid,'tanh':nn.Tanh
+            }
     labels = {'cifar10': 10,'svhn': 10,'mnist':10,'fmnist':10,'emnist-d':10,
               'emnist-l': 26,
               'emnist-b': 47,
               'cifar100': 100,
               'tiny_imagenet': 200}
-    norm, num_cls = norms.get(args.norm_type), labels.get(args.dataset_name)
+    norm, num_cls,act = norms.get(args.norm_type), labels.get(args.dataset_name),acts.get(args.activation)
     # First Network Architecture, then its parameters in order
-    neural_networks = {'simplecifar': [SimpleCifarNet, norm, num_cls], ## Large CNN for cifar-like datasets
-                       'simplecnn': [SimpleCNN, norm, num_cls], ## smaller CNN for cifar-like datasets
+    neural_networks = {'simplecifar': [SimpleCifarNet, norm,act, num_cls], ## Large CNN for cifar-like datasets
+                       'simplecnn': [SimpleCNN, norm,act, num_cls], ## smaller CNN for cifar-like datasets
                        'resnet8': [ResNet_3Layer, BasicBlock, [1, 1, 1], norm, num_cls],
                        'resnet20': [ResNet_3Layer, BasicBlock, [2, 2, 2], norm, num_cls],
                        'resnet9': [ResNet, BasicBlock, [1, 1, 1, 1], norm, num_cls],
@@ -33,9 +34,9 @@ def get_net(args):
                        'vgg16': [VGG, '16', norm, num_cls],
                        'vgg19': [VGG, '19', norm, num_cls],
                        'mobilenet': [MobileNet,norm, num_cls],
-                       'mnistnet':[MNIST_NET,norm,num_cls], ## CNN for 1-channel image classification
+                       'mnistnet':[MNIST_NET,norm,act,num_cls], ## CNN for 1-channel image classification
                        'mlp_big':[MLP_big,num_cls],
-                       'mlp_small': [MLP_small,num_cls],
+                       'mlp_small': [MLP_small,act,num_cls],
                        }
     nn_name = args.nn_name.lower()
     try:

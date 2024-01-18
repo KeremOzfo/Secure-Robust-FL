@@ -85,12 +85,9 @@ def evaluate_accuracy(model, testloader, device):
 def save_results(args,**kwargs):
     sim_id = random.randint(1,9999)
     attack = args.attack
-    if args.attack == 'reloc':
-        if args.sparse_masking:
-            attack += '+S'
     aggr = args.aggr
     if aggr =='cc':
-        aggr = '{}_Tau_{}'.format(aggr,args.tau)
+        aggr = '{}_Tau_{}-{}'.format(aggr,args.tau,sim_id)
     momentum = args.Lmomentum
     dataset = '{}_{}'.format(args.dataset_name,args.dataset_dist)
     delta = int(args.traitor * args.num_client) if args.traitor < 1 else int(args.traitor)

@@ -11,7 +11,7 @@ def args_parser():
     parser.add_argument('--global_epoch', type=int, default=100, help='total cumulative epoch')
     parser.add_argument('--localIter', type=int, default=1, help='Local Epoch')
     parser.add_argument('--num_client', type=int, default=25, help='number of clients')
-    parser.add_argument('--num_clusters', type=int, default=7, help='number of clusters')
+    parser.add_argument('--num_clusters', type=int, default=5, help='number of clusters')
     parser.add_argument('--Byz_each_cluster', type=bool, default=False, help='Ensures that at least 1 Byzantine present in each cluster')
     parser.add_argument('--traitor', type=float, default=0, help='traitor ratio')
     parser.add_argument('--attack', type=str, default='bit_flip', help='see Attacks')
@@ -54,14 +54,15 @@ def args_parser():
     parser.add_argument('--lr', type=float, default=0.1, help='learning_rate')
     parser.add_argument('--lr_decay', type=float, default=[75], help='lr drop at given epoch')
     parser.add_argument('--wd', type=float, default=0, help='weight decay Value')
-    parser.add_argument('--Lmomentum', type=float, default=0.9, help='Local Momentum for SGD')
+    parser.add_argument('--Lmomentum', type=float, default=0, help='Local Momentum for SGD')
     parser.add_argument('--betas', type=tuple, default=(0.9,0.999), help='betas for adam and adamw opts')
     parser.add_argument('--worker_momentum', type=bool, default=True, help='adam like gradiant multiplier for SGD (1-Lmomentum)')
     parser.add_argument('--nesterov', type=bool, default=False, help='nestrov momentum for Local SGD steps')
+    parser.add_argument('--first_grad', type=bool, default=False, help='First gradient does not scaled for momentum')
 
     # dataset related
     parser.add_argument('--dataset_name', type=str, default='mnist', help='see data_loader.py')
-    parser.add_argument('--dataset_dist', type=str, default='dirichlet',
+    parser.add_argument('--dataset_dist', type=str, default='iid',
                         help='distribution of dataset; iid or sort_part, dirichlet')
     parser.add_argument('--numb_cls_usr', type=int, default=2,
                         help='number of label type per client if sort_part selected')
@@ -77,6 +78,8 @@ def args_parser():
                         help='gn (GroupNorm), bn (BatchNorm), - (None)')
     parser.add_argument('--num_groups', type=int, default=32,
                         help='number of groups if GroupNorm selected as norm_type, 1 for LayerNorm')
+    parser.add_argument('--activation', type=str, default='relu',
+                        help='activation function on CNNs')
 
     args = parser.parse_args()
     return args
